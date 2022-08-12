@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"sync/atomic"
+	"time"
 )
 
 type Server struct {
@@ -48,7 +49,7 @@ func (s *Server) UploadImage(_ context.Context, req *pb.UploadImageRequest) (*pb
 	var encodedData []byte
 	base64.StdEncoding.Encode(encodedData, data)
 
-	id, err := s.repo.UploadImage(name, encodedData)
+	id, err := s.repo.UploadImage(name, encodedData, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
@@ -71,7 +72,7 @@ func (s *Server) UpdateImage(_ context.Context, req *pb.UpdateImageRequest) (*pb
 	var encodedData []byte
 	base64.StdEncoding.Encode(encodedData, data)
 
-	err := s.repo.UpdateImage(id, name, data)
+	err := s.repo.UpdateImage(id, name, data, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
