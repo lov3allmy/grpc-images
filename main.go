@@ -9,11 +9,14 @@ import (
 	"github.com/lov3allmy/tages/cmd"
 	pb "github.com/lov3allmy/tages/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -55,10 +58,16 @@ func main() {
 		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			switch info.FullMethod {
 			case "/lov3allmy.tages.ImageStorageService/UploadImageRequest", "/lov3allmy.tages.ImageStorageService/UpdateImageRequest", "/lov3allmy.tages.ImageStorageService/DownloadImageRequest":
-				imageStorageService.IncLoadConn()
+				if atomic.LoadInt64(&imageStorageService.LoadConn) > 10 {
+					return nil, status.Errorf(codes.ResourceExhausted, "%s is rejected, please retry later", info.FullMethod)
+				}
+				atomic.AddInt64(&imageStorageService.LoadConn, 1)
 				return handler(ctx, req)
 			case "/lov3allmy.tages.ImageStorageService/GetImagesListRequest":
-				imageStorageService.IncGetListConn()
+				if atomic.LoadInt64(&imageStorageService.GetListConn) > 100 {
+					return nil, status.Errorf(codes.ResourceExhausted, "%s is rejected, please retry later", info.FullMethod)
+				}
+				atomic.AddInt64(&imageStorageService.GetListConn, 1)
 				return handler(ctx, req)
 			default:
 				return handler(ctx, req)

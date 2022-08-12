@@ -13,29 +13,13 @@ import (
 
 type Server struct {
 	pb.UnimplementedImageStorageServiceServer
-	repo        *Repository
-	loadConn    int64
-	getListConn int64
+	Repo        *Repository
+	LoadConn    int64
+	GetListConn int64
 }
 
 func NewServer(repo *Repository) *Server {
-	return &Server{repo: repo}
-}
-
-func (s *Server) IncLoadConn() {
-	atomic.AddInt64(&s.loadConn, 1)
-}
-
-func (s *Server) decLoadConn() {
-	atomic.AddInt64(&s.loadConn, -1)
-}
-
-func (s *Server) IncGetListConn() {
-	atomic.AddInt64(&s.getListConn, 1)
-}
-
-func (s *Server) decGetListConn() {
-	atomic.AddInt64(&s.getListConn, -1)
+	return &Server{Repo: repo}
 }
 
 func (s *Server) UploadImage(_ context.Context, req *pb.UploadImageRequest) (*pb.UploadImageResponse, error) {
@@ -49,11 +33,11 @@ func (s *Server) UploadImage(_ context.Context, req *pb.UploadImageRequest) (*pb
 	var encodedData []byte
 	base64.StdEncoding.Encode(encodedData, data)
 
-	id, err := s.repo.UploadImage(name, encodedData, time.Now())
+	id, err := s.Repo.UploadImage(name, encodedData, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
-	s.decLoadConn()
+	atomic.AddInt64(&s.LoadConn, -1)
 
 	res := &pb.UploadImageResponse{Id: id}
 
@@ -72,11 +56,11 @@ func (s *Server) UpdateImage(_ context.Context, req *pb.UpdateImageRequest) (*pb
 	var encodedData []byte
 	base64.StdEncoding.Encode(encodedData, data)
 
-	err := s.repo.UpdateImage(id, name, data, time.Now())
+	err := s.Repo.UpdateImage(id, name, data, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
-	s.decLoadConn()
+	atomic.AddInt64(&s.LoadConn, -1)
 
 	res := &pb.UpdateImageResponse{}
 
@@ -87,7 +71,7 @@ func (s *Server) DownloadImage(_ context.Context, req *pb.DownloadImageRequest) 
 
 	id := req.GetId()
 
-	encodedData, err := s.repo.DownloadImage(id)
+	encodedData, err := s.Repo.DownloadImage(id)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot read image data from DB: %v", err)
 	}
@@ -97,7 +81,7 @@ func (s *Server) DownloadImage(_ context.Context, req *pb.DownloadImageRequest) 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot decode image data: %v", err)
 	}
-	s.decLoadConn()
+	atomic.AddInt64(&s.LoadConn, -1)
 
 	res := &pb.DownloadImageResponse{Data: data}
 
@@ -106,7 +90,7 @@ func (s *Server) DownloadImage(_ context.Context, req *pb.DownloadImageRequest) 
 
 func (s *Server) GetImagesList(_ context.Context, _ *pb.GetImagesListRequest) (*pb.GetImagesListResponse, error) {
 
-	list, err := s.repo.GetImagesList()
+	list, err := s.Repo.GetImagesList()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot read images info from DB: %v", err)
 	}
@@ -120,7 +104,7 @@ func (s *Server) GetImagesList(_ context.Context, _ *pb.GetImagesListRequest) (*
 			ModifiedAt: timestamppb.New(imageInfo.ModifiedAt),
 		})
 	}
-	s.decGetListConn()
+	atomic.AddInt64(&s.GetListConn, -1)
 
 	res := &pb.GetImagesListResponse{ImageInfo: resList}
 
