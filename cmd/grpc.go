@@ -7,15 +7,34 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"sync/atomic"
 )
 
 type Server struct {
 	pb.UnimplementedImageStorageServiceServer
-	repo *Repository
+	repo        *Repository
+	loadConn    int64
+	getListConn int64
 }
 
 func NewServer(repo *Repository) *Server {
 	return &Server{repo: repo}
+}
+
+func (s *Server) IncLoadConn() {
+	atomic.AddInt64(&s.loadConn, 1)
+}
+
+func (s *Server) decLoadConn() {
+	atomic.AddInt64(&s.loadConn, -1)
+}
+
+func (s *Server) IncGetListConn() {
+	atomic.AddInt64(&s.getListConn, 1)
+}
+
+func (s *Server) decGetListConn() {
+	atomic.AddInt64(&s.getListConn, -1)
 }
 
 func (s *Server) UploadImage(_ context.Context, req *pb.UploadImageRequest) (*pb.UploadImageResponse, error) {
@@ -33,6 +52,7 @@ func (s *Server) UploadImage(_ context.Context, req *pb.UploadImageRequest) (*pb
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
+	s.decLoadConn()
 
 	res := &pb.UploadImageResponse{Id: id}
 
@@ -55,6 +75,7 @@ func (s *Server) UpdateImage(_ context.Context, req *pb.UpdateImageRequest) (*pb
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
+	s.decLoadConn()
 
 	res := &pb.UpdateImageResponse{}
 
@@ -75,6 +96,7 @@ func (s *Server) DownloadImage(_ context.Context, req *pb.DownloadImageRequest) 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot decode image data: %v", err)
 	}
+	s.decLoadConn()
 
 	res := &pb.DownloadImageResponse{Data: data}
 
@@ -97,6 +119,7 @@ func (s *Server) GetImagesList(_ context.Context, _ *pb.GetImagesListRequest) (*
 			ModifiedAt: timestamppb.New(imageInfo.ModifiedAt),
 		})
 	}
+	s.decGetListConn()
 
 	res := &pb.GetImagesListResponse{ImageInfo: resList}
 

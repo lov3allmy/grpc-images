@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -49,21 +50,35 @@ func main() {
 		m.Close()
 	}()
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	s := grpc.NewServer()
+	imageStorageService := cmd.NewServer(repo)
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			switch info.FullMethod {
+			case "/lov3allmy.tages.ImageStorageService/UploadImageRequest", "/lov3allmy.tages.ImageStorageService/UpdateImageRequest", "/lov3allmy.tages.ImageStorageService/DownloadImageRequest":
+				imageStorageService.IncLoadConn()
+				return handler(ctx, req)
+			case "/lov3allmy.tages.ImageStorageService/GetImagesListRequest":
+				imageStorageService.IncGetListConn()
+				return handler(ctx, req)
+			default:
+				return handler(ctx, req)
+			}
+		}),
+	)
 
 	wg := sync.WaitGroup{}
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	wg.Add(1)
 	go func() {
 		<-sigCh
-		s.GracefulStop()
+		grpcServer.GracefulStop()
 		wg.Done()
 	}()
 
-	pb.RegisterImageStorageServiceServer(s, cmd.NewServer(repo))
-	if err := s.Serve(lis); err != nil {
+	pb.RegisterImageStorageServiceServer(grpcServer, cmd.NewServer(repo))
+	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 
