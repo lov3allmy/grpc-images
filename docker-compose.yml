@@ -1,6 +1,5 @@
 services:
   postgres:
-    restart: always
     image: postgres:latest
     environment:
       - POSTGRES_PASSWORD=postgrespw
@@ -21,3 +20,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgrespw
+      - DB_HOST=postgres
+      - DB_P0RT=5432
+      - DB_NAME=postgres

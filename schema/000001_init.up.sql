@@ -1,4 +1,3 @@
-DROP EXTENSION "uuid-ossp";
 CREATE EXTENSION "uuid-ossp";
 CREATE TABLE images
 (
