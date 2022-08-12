@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package lov3allmy.tages;
+
+option go_package = "github.com/lov3allmy/tages/main/pb";
+
+import "google/protobuf/timestamp.proto";
+
+service ImageStorageService {
+  rpc UploadImage(UploadImageRequest) returns (UploadImageResponse) {}
+  rpc UpdateImage(UpdateImageRequest) returns (UpdateImageResponse) {}
+  rpc DownloadImage(DownloadImageRequest) returns (DownloadImageResponse) {}
+  rpc GetImagesList(GetImagesListRequest) returns (GetImagesListResponse) {}
+}
+
+message UploadImageRequest {
+  string name = 1;
+  bytes data = 2;
+}
+
+message UploadImageResponse {
+  int64 id = 1;
+}
+
+message UpdateImageRequest {
+  int64 id = 1;
+  string name = 2;
+  bytes data = 3;
+}
+
+message UpdateImageResponse {}
+
+message DownloadImageRequest {
+  int64 id = 1;
+}
+
+message DownloadImageResponse {
+  bytes data = 1;
+}
+
+message GetImagesListRequest {}
+
+message GetImagesListResponse {
+  message ImageInfo {
+    string name = 1;
+    google.protobuf.Timestamp created_at = 2;
+    google.protobuf.Timestamp modified_at = 3;
+  }
+
+  repeated ImageInfo imageInfo = 1;
+}
