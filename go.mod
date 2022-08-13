@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.15.2
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/lib/pq v1.10.6
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
