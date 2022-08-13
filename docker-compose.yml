@@ -4,7 +4,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgrespw
     ports:
-      - 5432:5432
+      - 5436:5432
     volumes:
       - ./.database/postgres/data:/var/lib/postgresql
     healthcheck:
@@ -13,10 +13,10 @@ services:
       timeout: 5s
       retries: 5
   app:
+    image: app
     build: ./
     ports:
-      - 8000:8000
-    image: app
+      - 8080:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,3 +26,5 @@ services:
       - DB_HOST=postgres
       - DB_P0RT=5432
       - DB_NAME=postgres
+      - APP_HOST=app
+      - APP_PORT=8000

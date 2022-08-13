@@ -10,6 +10,7 @@ import (
 	"github.com/lov3allmy/tages/internal"
 	pb "github.com/lov3allmy/tages/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
 	"os"
@@ -18,7 +19,7 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", "localhost:8000")
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", os.Getenv("APP_HOST"), os.Getenv("APP_PORT")))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -31,11 +32,19 @@ func main() {
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_NAME"))
 
+	//dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
+	//	"postgres",
+	//	"postgrespw",
+	//	"localhost",
+	//	"5436",
+	//	"postgres")
+
 	db, err := sql.Open("postgres", dbSource)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer db.Close()
+	log.Println("connect to database: success")
 
 	repo := internal.NewRepository(db)
 
@@ -51,6 +60,7 @@ func main() {
 	defer func() {
 		m.Close()
 	}()
+	log.Println("migration up: success")
 
 	sm := &internal.ServerMiddleware{}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(sm.Interceptor))
@@ -63,7 +73,10 @@ func main() {
 	}()
 
 	pb.RegisterImageStorageServiceServer(grpcServer, internal.NewServer(repo))
+	reflection.Register(grpcServer)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
+	} else {
+		log.Println("start GRPC server")
 	}
 }

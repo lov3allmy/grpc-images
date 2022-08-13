@@ -24,7 +24,7 @@ type imageInfo struct {
 func (r *Repository) UploadImage(ctx context.Context, name string, data []byte, time time.Time) (string, error) {
 
 	var id string
-	query := "INSERT INTO images (name, raw, created_at, modified_at) VALUES ($1, $2, $3, $4) RETURNING id"
+	query := `INSERT INTO images (name, raw, created_at, modified_at) VALUES ($1, encode($2, 'base64'), $3, $4) RETURNING id`
 	err := r.DB.QueryRowContext(ctx, query, name, data, time, time).Scan(&id)
 	if err != nil {
 		return "", err
@@ -35,7 +35,7 @@ func (r *Repository) UploadImage(ctx context.Context, name string, data []byte, 
 
 func (r *Repository) UpdateImage(ctx context.Context, id string, newName string, newData []byte, time time.Time) error {
 
-	query := "UPDATE images SET (name, raw, modified_at) = ($1, $2, $3) WHERE id = $4"
+	query := `UPDATE images SET (name, raw, modified_at) = ($1, encode($2, 'base64'), $3) WHERE id = $4`
 	exec, err := r.DB.ExecContext(ctx, query, newName, newData, time, id)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (r *Repository) UpdateImage(ctx context.Context, id string, newName string,
 func (r *Repository) DownloadImage(ctx context.Context, id string) ([]byte, error) {
 
 	var data []byte
-	query := "SELECT raw FROM images WHERE id = $1"
+	query := `SELECT decode(raw, 'base64') FROM images WHERE id = $1`
 	err := r.DB.QueryRowContext(ctx, query, id).Scan(&data)
 	if err != nil {
 		return nil, err

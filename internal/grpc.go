@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"encoding/base64"
 	pb "github.com/lov3allmy/tages/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,10 +26,7 @@ func (s *Server) UploadImage(ctx context.Context, req *pb.UploadImageRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "the image size exceeds 10 MB")
 	}
 
-	var encodedData []byte
-	base64.StdEncoding.Encode(encodedData, data)
-
-	id, err := s.repo.UploadImage(ctx, name, encodedData, time.Now())
+	id, err := s.repo.UploadImage(ctx, name, data, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
 	}
@@ -49,9 +45,6 @@ func (s *Server) UpdateImage(ctx context.Context, req *pb.UpdateImageRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "the image size exceeds 10 MB")
 	}
 
-	var encodedData []byte
-	base64.StdEncoding.Encode(encodedData, data)
-
 	err := s.repo.UpdateImage(ctx, id, name, data, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot write changes to DB: %v", err)
@@ -66,15 +59,9 @@ func (s *Server) DownloadImage(ctx context.Context, req *pb.DownloadImageRequest
 
 	id := req.GetId()
 
-	encodedData, err := s.repo.DownloadImage(ctx, id)
+	data, err := s.repo.DownloadImage(ctx, id)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "cannot read image data from DB: %v", err)
-	}
-
-	var data []byte
-	_, err = base64.StdEncoding.Decode(data, encodedData)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "cannot decode image data: %v", err)
 	}
 
 	res := &pb.DownloadImageResponse{Data: data}
