@@ -32,19 +32,12 @@ func main() {
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_NAME"))
 
-	//dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-	//	"postgres",
-	//	"postgrespw",
-	//	"localhost",
-	//	"5436",
-	//	"postgres")
-
 	db, err := sql.Open("postgres", dbSource)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer db.Close()
-	log.Println("connect to database: success")
+	log.Println("connected to database")
 
 	repo := internal.NewRepository(db)
 
@@ -60,7 +53,7 @@ func main() {
 	defer func() {
 		m.Close()
 	}()
-	log.Println("migration up: success")
+	log.Println("migration upped")
 
 	sm := &internal.ServerMiddleware{}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(sm.Interceptor))
@@ -73,10 +66,12 @@ func main() {
 	}()
 
 	pb.RegisterImageStorageServiceServer(grpcServer, internal.NewServer(repo))
+
+	// For Evans CLI gRPC client
 	reflection.Register(grpcServer)
+
+	log.Println("start gRPC server")
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
-	} else {
-		log.Println("start GRPC server")
 	}
 }
